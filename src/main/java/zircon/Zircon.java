@@ -12,6 +12,7 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -25,7 +26,8 @@ import java.util.stream.Collectors;
 public class Zircon {
 
     public static void main(String[] args) {
-        Zircon.run("1 + 2.echo");
+        String source = String.join(" ", args);
+        Zircon.run(source.isEmpty() ? "(1.2 * 3).echo" : source);
     }
 
     /**
@@ -43,6 +45,7 @@ public class Zircon {
      * @param out 標準出力
      */
     public static void run(String source, Consumer<Dictionary> config, PrintStream out) {
+        Logger.getLogger(Zircon.class.getName()).info(source);
         World world = new World(null);
         try {
             world
@@ -410,7 +413,7 @@ public class Zircon {
                     skip(spaces, newlines);
                     values.add(expression());
                 }
-                return new Ast(values);
+                return values.size() == 1 ? e : new Ast(values);
             }).orElseGet(() -> {
                 skip(spaces, newlines);
                 return new Ast();
@@ -505,7 +508,9 @@ public class Zircon {
             int start = index;
             skip(separators, digits);
             if (skip('.') == 1) {
-                skip(separators, digits);
+                if (skip(separators, digits) <= 0) { // .で終わる場合はメソッド呼び出し
+                    index--;
+                }
             }
             return new ZrNumber(source.substring(start, index));
         }
@@ -541,7 +546,7 @@ public class Zircon {
     /**
      * 辞書インターフェース
      */
-    interface Dictionary {
+    interface Dictionary extends Iterable<Map.Entry<String, Object>> {
         /**
          * キーに対応する値を取得
          * @param key キー
@@ -569,6 +574,11 @@ public class Zircon {
      * 辞書実装
      */
     static class Can implements Dictionary {
+        @Override
+        public String toString() {
+            return "can:" + Objects.toString(this);
+        }
+
         /**
          * 格納先
          */
@@ -594,6 +604,11 @@ public class Zircon {
         @Override
         public boolean has(String key) {
             return map.containsKey(key);
+        }
+
+        @Override
+        public Iterator<Entry<String, Object>> iterator() {
+            return map.entrySet().iterator();
         }
     }
 

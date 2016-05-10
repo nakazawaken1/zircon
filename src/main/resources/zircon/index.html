@@ -16,7 +16,7 @@
 <script type="text/javascript">
 jQuery(function($) {
     $('#run').on('click', function() {
-        $.post('api', $('form').serialize(), function(r) { $('#output').val(r); });
+        $.post('', $('form').serialize(), function(r) { $('#output').val(r); });
     });
 });
 </script>
