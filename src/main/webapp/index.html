@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>プログラミング言語 zircon</title>
+</head>
+<body>
+<form>
+<textarea name="code" rows="10" cols="80"></textarea>
+<br/>
+<input id="run" type="button" value="run"/>
+<br/>
+<textarea id="output" rows="10" cols="80"></textarea>
+</form>
+<script src="jquery-1.12.3.js"></script>
+<script type="text/javascript">
+jQuery(function($) {
+    $('#run').on('click', function() {
+        $.post('api', $('form').serialize(), function(r) { $('#output').val(r); });
+    });
+});
+</script>
+</body>
+</html>
