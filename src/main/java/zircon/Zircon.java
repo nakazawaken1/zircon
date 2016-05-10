@@ -20,14 +20,18 @@ import java.util.function.Supplier;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+import zircon.util.LogFormatter;
+
 /**
  * プログラミング言語 Zircon
  */
 public class Zircon {
 
     public static void main(String[] args) {
+        // ログ出力設定
+        LogFormatter.setup();
         String source = String.join(" ", args);
-        Zircon.run(source.isEmpty() ? "(1.2 * 3).echo" : source);
+        Zircon.run(source.isEmpty() ? "$.echo" : source);
     }
 
     /**
@@ -37,6 +41,11 @@ public class Zircon {
     public static void run(String source) {
         run(source, null, System.out);
     }
+    
+    /**
+     * 改行文字
+     */
+    static final String lineSeparator = System.lineSeparator();
 
     /**
      * 実行
@@ -50,8 +59,9 @@ public class Zircon {
         try {
             world
                 .put("$", world)
-                    .put("echo", new ZrNative(PrintStream.class.getMethod("println", Object.class), out))
-                    .put("print", new ZrNative(PrintStream.class.getMethod("print", Object.class), out));
+                .put("echo", new ZrNative(PrintStream.class.getMethod("println", Object.class), out))
+                .put("print", new ZrNative(PrintStream.class.getMethod("print", Object.class), out))
+                .put("env", new Can(m -> Optional.ofNullable(System.getenv()).ifPresent(env -> env.entrySet().stream().forEach(i -> m.put(i.getKey(), i.getValue())))));
         } catch (NoSuchMethodException | SecurityException e) {
             e.printStackTrace();
         }
@@ -63,6 +73,15 @@ public class Zircon {
                 System.err.println("#> " + ast.calc(world));
             }
         }
+    }
+    
+    /**
+     * @param setter
+     * @return
+     */
+    @SafeVarargs
+    public static Can can(Consumer<Can>... setter) {
+        return new Can(setter);
     }
 
     /**
@@ -267,7 +286,7 @@ public class Zircon {
             try {
                 return Optional.of(ast.get());
             } catch (RuntimeException e) {
-                Logger.getLogger(getClass().getName()).fine("rollback " + index + " -> " + start);
+                Logger.getLogger(getClass().getName()).config("rollback " + index + " -> " + start);
                 index = start;
                 return Optional.empty();
             }
@@ -277,7 +296,7 @@ public class Zircon {
          * @return statement ( newlines | ';' | END_OF_SOURCE )
          */
         Ast program() {
-            Logger.getLogger(getClass().getName()).fine("" + index);
+            Logger.getLogger(getClass().getName()).config("" + index);
             final int[] separators = { ';' };
             Ast r = statement();
             if (peek(newlines) == '\0' && peek(separators) == '\0' && peek() != '\0') {
@@ -294,7 +313,7 @@ public class Zircon {
          * @return [ 'return' ] ( if | for | do | simple )
          */
         Ast statement() {
-            Logger.getLogger(getClass().getName()).fine("" + index);
+            Logger.getLogger(getClass().getName()).config("" + index);
             Optional<String> Return = eat("return");
             Ast ast;
             if (eat("if").isPresent()) {
@@ -323,7 +342,7 @@ public class Zircon {
          * @return expression [ tuple ]
          */
         Ast simple() {
-            Logger.getLogger(getClass().getName()).fine("" + index);
+            Logger.getLogger(getClass().getName()).config("" + index);
             Ast e = expression();
             return test(this::tuple).<Ast> map(t -> new ZrPrimitive(e, t.children.toArray(new Ast[] {}))).orElse(e);
         }
@@ -332,7 +351,7 @@ public class Zircon {
          * @return prefix { operator prefix }
          */
         Ast expression() {
-            Logger.getLogger(getClass().getName()).fine("" + index);
+            Logger.getLogger(getClass().getName()).config("" + index);
             Ast right = prefix();
             Optional<Map.Entry<String, Integer>> next;
             while ((next = operator()).isPresent()) {
@@ -345,7 +364,7 @@ public class Zircon {
          * @return [ '+'|'-'|'not'|'exists'|'empty' ] primitive
          */
         Ast prefix() {
-            Logger.getLogger(getClass().getName()).fine("" + index);
+            Logger.getLogger(getClass().getName()).config("" + index);
             return eat(prefixes).<Ast> map(p -> new ZrPrefix(new ZrSymbol(p), primitive())).orElseGet(() -> primitive());
         }
 
@@ -375,7 +394,7 @@ public class Zircon {
          * @return ( 'true' | 'false' | argument | string | number | symbol ) { postfix }
          */
         Ast primitive() {
-            Logger.getLogger(getClass().getName()).fine("" + index);
+            Logger.getLogger(getClass().getName()).config("" + index);
             Ast ast = eat("true", "false").<Ast> map(s -> "true".equals(s) ? ZrBoolean.TRUE : ZrBoolean.FALSE)
                     .orElseGet(() -> test(this::string)
                     .orElseGet(() -> test(this::number)
@@ -396,7 +415,7 @@ public class Zircon {
          * @return '.' symbol | argument
          */
         Ast postfix() {
-            Logger.getLogger(getClass().getName()).fine("" + index);
+            Logger.getLogger(getClass().getName()).config("" + index);
             return eat(".").map(x -> symbol()).orElseGet(() -> argument());
         }
 
@@ -404,7 +423,7 @@ public class Zircon {
          * @return '(' ( { newlines } | expression { ( ',' | newlines ) expression } [ ',' ] ) ')'
          */
         Ast argument() {
-            Logger.getLogger(getClass().getName()).fine("" + index);
+            Logger.getLogger(getClass().getName()).config("" + index);
             eat("(").orElseThrow(() -> error("expected ("));
             Ast ast = test(this::expression).map(e -> {
                 List<Ast> values = new ArrayList<>();
@@ -426,7 +445,7 @@ public class Zircon {
          * @return expression { ',' expression }
          */
         Ast tuple() {
-            Logger.getLogger(getClass().getName()).fine("" + index);
+            Logger.getLogger(getClass().getName()).config("" + index);
             List<Ast> values = new ArrayList<>();
             values.add(expression());
             while (eat(",").isPresent()) {
@@ -440,7 +459,7 @@ public class Zircon {
          * @return '{' ( { newlines } | statement { newlines statement } [ newlines ] ) '}'
          */
         Ast block() {
-            Logger.getLogger(getClass().getName()).fine("" + index);
+            Logger.getLogger(getClass().getName()).config("" + index);
             eat("{").orElseThrow(() -> error("expected {"));
             Ast ast = test(this::statement).map(e -> {
                 List<Ast> values = new ArrayList<>();
@@ -462,7 +481,7 @@ public class Zircon {
          * @return "'" _ { ^"''"^ | "'" } _ "'" | '"' _ { ^'"'^ | '\"' } _ '"'
          */
         Ast string() {
-            Logger.getLogger(getClass().getName()).fine("" + index);
+            Logger.getLogger(getClass().getName()).config("" + index);
             skip();
             int start = index;
             switch (peek()) {
@@ -500,7 +519,7 @@ public class Zircon {
          *         ]
          */
         Ast number() {
-            Logger.getLogger(getClass().getName()).fine("" + index);
+            Logger.getLogger(getClass().getName()).config("" + index);
             final int[] separators = { '_' };
             skip();
             if (peek(digits) == '\0')
@@ -519,7 +538,7 @@ public class Zircon {
          * @return ^digits|marks|spaces|newlines|';'^ _ { ^marks|spaces|newlines|';'^ }
          */
         Ast symbol() {
-            Logger.getLogger(getClass().getName()).fine("" + index);
+            Logger.getLogger(getClass().getName()).config("" + index);
             skip();
             if (peek(digits) != '\0' || peek(marks) != '\0' || peek(spaces) != '\0' || peek(newlines) != '\0' || peek(';') != '\0') {
                 throw error("expected symbol");
@@ -546,7 +565,7 @@ public class Zircon {
     /**
      * 辞書インターフェース
      */
-    interface Dictionary extends Iterable<Map.Entry<String, Object>> {
+    public interface Dictionary extends Iterable<Map.Entry<String, Object>> {
         /**
          * キーに対応する値を取得
          * @param key キー
@@ -568,15 +587,33 @@ public class Zircon {
          * @return true:存在する, false:しない
          */
         boolean has(String key);
+        
+        /**
+         * @return 文字列
+         */
+        default String string() {
+            StringBuffer s = new StringBuffer("[").append(lineSeparator);
+            for(Map.Entry<String, Object> i : this) {
+                Object value = i.getValue();
+                s.append(i.getKey()).append('=').append(value == this ? "(self)" : value).append(lineSeparator);
+            }
+            return s.append(']').append(lineSeparator).toString();
+        }
     }
 
     /**
      * 辞書実装
      */
-    static class Can implements Dictionary {
+    public static class Can implements Dictionary {
+
+        @SafeVarargs
+        Can(Consumer<Can>... setter) {
+            Arrays.stream(setter).forEach(i -> i.accept(this));
+        }
+        
         @Override
         public String toString() {
-            return "can:" + Objects.toString(this);
+            return string();
         }
 
         /**
@@ -679,7 +716,7 @@ public class Zircon {
             this.children = Arrays.asList(children);
             String s = toString();
             if (s != null)
-                Logger.getLogger(getClass().getName()).fine(s);
+                Logger.getLogger(getClass().getName()).config(s);
         }
 
         /**
@@ -690,7 +727,7 @@ public class Zircon {
             this.children = children;
             String s = toString();
             if (s != null) {
-                Logger.getLogger(getClass().getName()).fine(s);
+                Logger.getLogger(getClass().getName()).config(s);
             }
         }
 
@@ -736,7 +773,7 @@ public class Zircon {
             this.value = value;
             String s = toString();
             if (s != null) {
-                Logger.getLogger(getClass().getName()).fine(s);
+                Logger.getLogger(getClass().getName()).config(s);
             }
         }
     }
@@ -894,7 +931,7 @@ public class Zircon {
             super(null);
             this.value = value;
             this.children = Arrays.asList(parameters);
-            Logger.getLogger(getClass().getName()).fine(toString());
+            Logger.getLogger(getClass().getName()).config(toString());
         }
 
         @Override
@@ -982,7 +1019,7 @@ public class Zircon {
         ZrNative(Method method, Object object) {
             this.method = method;
             this.object = object;
-            Logger.getLogger(getClass().getName()).fine(toString());
+            Logger.getLogger(getClass().getName()).config(toString());
         }
 
         @Override

@@ -1,4 +1,4 @@
-package zircon;
+package zircon.web;
 
 import java.io.PrintStream;
 import java.util.Optional;
@@ -8,11 +8,15 @@ import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
+
+import zircon.Zircon;
 
 @Path("")
 public class Main {
@@ -33,9 +37,10 @@ public class Main {
     }
 
     @POST
+    @Produces(MediaType.TEXT_PLAIN)
     public Object index(@FormParam("code") String code) {
-        return (StreamingOutput) out -> Zircon.run(code,
-                m -> headers.getRequestHeaders().entrySet().stream().forEach(i -> m.put(i.getKey(), i.getValue().get(0))),
+        return (StreamingOutput) out -> Zircon.run(code, m -> m.put("requestHeaders", Zircon.can(
+                n -> headers.getRequestHeaders().entrySet().stream().forEach(i -> n.put(i.getKey(), String.join(", ", i.getValue()))))),
                 new PrintStream(out));
     }
 }
