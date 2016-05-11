@@ -1,5 +1,7 @@
 package zircon;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -41,11 +43,20 @@ public class Zircon {
     public static void run(String source) {
         run(source, null, System.out);
     }
-    
+
     /**
-     * 改行文字
+     * 実行して標準出力を取得
+     * @param source ソース
      */
-    static final String lineSeparator = System.lineSeparator();
+    public static String get(String source) {
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream(); PrintStream stream = new PrintStream(out)) {
+            run(source, null, stream);
+            return out.toString();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 
     /**
      * 実行
@@ -57,11 +68,10 @@ public class Zircon {
         Logger.getLogger(Zircon.class.getName()).info(source);
         World world = new World(null);
         try {
-            world
-                .put("$", world)
-                .put("echo", new ZrNative(PrintStream.class.getMethod("println", Object.class), out))
-                .put("print", new ZrNative(PrintStream.class.getMethod("print", Object.class), out))
-                .put("env", new Can(m -> Optional.ofNullable(System.getenv()).ifPresent(env -> env.entrySet().stream().forEach(i -> m.put(i.getKey(), i.getValue())))));
+            world.put("$", world).put("echo", new ZrNative(PrintStream.class.getMethod("println", Object.class), out))
+                    .put("print", new ZrNative(PrintStream.class.getMethod("print", Object.class), out))
+                    .put("env", new Can(m -> Optional.ofNullable(System.getenv())
+                            .ifPresent(env -> env.entrySet().stream().forEach(i -> m.put(i.getKey(), i.getValue())))));
         } catch (NoSuchMethodException | SecurityException e) {
             e.printStackTrace();
         }
@@ -74,7 +84,7 @@ public class Zircon {
             }
         }
     }
-    
+
     /**
      * @param setter
      * @return
@@ -85,11 +95,16 @@ public class Zircon {
     }
 
     /**
+     * 改行文字
+     */
+    static final String lineSeparator = System.lineSeparator();
+
+    /**
      * 実行時エラー
      * @param e 例外
      * @return 実行時例外
      */
-    public static RuntimeException error(Exception e) {
+    static RuntimeException error(Exception e) {
         return new RuntimeException(e);
     }
 
@@ -307,9 +322,8 @@ public class Zircon {
         }
 
         /**
-         * if : 'if' expression block { 'ef' expression block } [ 'else' block ]
-         * for: 'for' ( block | expression block | symbol 'in' expression block )
-         * do : 'do' [ symbol ] { ',' symbol } [ ',' ] ( ':' expression | block )
+         * if : 'if' expression block { 'ef' expression block } [ 'else' block ] for: 'for' ( block | expression block | symbol 'in'
+         * expression block ) do : 'do' [ symbol ] { ',' symbol } [ ',' ] ( ':' expression | block )
          * @return [ 'return' ] ( if | for | do | simple )
          */
         Ast statement() {
@@ -328,14 +342,12 @@ public class Zircon {
                     list.add(block());
                 }
                 ast = new ZrIf(list.toArray(new Ast[] {}));
-/*            } else if (eat("for").isPresent()) {
-
-            } else if (eat("do").isPresent()) {*/
+                /* } else if (eat("for").isPresent()) { } else if (eat("do").isPresent()) { */
 
             } else {
                 ast = simple();
             }
-            return Return.<Ast>map(x -> new ZrReturn(ast)).orElse(ast);
+            return Return.<Ast> map(x -> new ZrReturn(ast)).orElse(ast);
         }
 
         /**
@@ -396,11 +408,8 @@ public class Zircon {
         Ast primitive() {
             Logger.getLogger(getClass().getName()).config("" + index);
             Ast ast = eat("true", "false").<Ast> map(s -> "true".equals(s) ? ZrBoolean.TRUE : ZrBoolean.FALSE)
-                    .orElseGet(() -> test(this::string)
-                    .orElseGet(() -> test(this::number)
-                    .orElseGet(() -> test(this::symbol)
-                    .orElseGet(() -> test(this::argument)
-                    .orElseThrow(() -> error("excepted primitive"))))));
+                    .orElseGet(() -> test(this::string).orElseGet(() -> test(this::number).orElseGet(() -> test(this::symbol)
+                            .orElseGet(() -> test(this::argument).orElseThrow(() -> error("excepted primitive"))))));
             for (;;) {
                 Optional<Ast> p = test(this::postfix);
                 if (p.isPresent())
@@ -515,8 +524,7 @@ public class Zircon {
         }
 
         /**
-         * @return digits _ { '_' | digits } _ [ '.' _ digits _ { '_' | digits }
-         *         ]
+         * @return digits _ { '_' | digits } _ [ '.' _ digits _ { '_' | digits } ]
          */
         Ast number() {
             Logger.getLogger(getClass().getName()).config("" + index);
@@ -587,13 +595,13 @@ public class Zircon {
          * @return true:存在する, false:しない
          */
         boolean has(String key);
-        
+
         /**
          * @return 文字列
          */
         default String string() {
             StringBuffer s = new StringBuffer("[").append(lineSeparator);
-            for(Map.Entry<String, Object> i : this) {
+            for (Map.Entry<String, Object> i : this) {
                 Object value = i.getValue();
                 s.append(i.getKey()).append('=').append(value == this ? "(self)" : value).append(lineSeparator);
             }
@@ -610,7 +618,7 @@ public class Zircon {
         Can(Consumer<Can>... setter) {
             Arrays.stream(setter).forEach(i -> i.accept(this));
         }
-        
+
         @Override
         public String toString() {
             return string();

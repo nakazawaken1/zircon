@@ -1,7 +1,17 @@
 package zircon.web;
 
+import java.io.IOException;
 import java.io.PrintStream;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystemNotFoundException;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.Optional;
+import java.util.logging.Logger;
 
 import javax.ws.rs.FormParam;
 import javax.ws.rs.GET;
@@ -29,10 +39,26 @@ public class Main {
         return file("index.html");
     }
 
+    String fileContentType(String file) {
+        try {
+            URI uri = getClass().getResource(file).toURI();
+            Logger.getGlobal().info(uri.toString());
+            try {
+                return Files.probeContentType(Paths.get(uri));
+            } catch (FileSystemNotFoundException e) {
+                try (FileSystem fs = FileSystems.newFileSystem(uri, Collections.<String, Object> emptyMap())) {
+                    return Files.probeContentType(fs.provider().getPath(uri));
+                }
+            }
+        } catch (IOException | URISyntaxException e) {
+            return MediaType.APPLICATION_OCTET_STREAM;
+        }
+    }
+
     @GET
     @Path("{file:.*}")
     public Object file(@PathParam("file") String file) {
-        return Optional.ofNullable(getClass().getResourceAsStream(file)).map(s -> Response.ok(s).build())
+        return Optional.ofNullable(getClass().getResourceAsStream(file)).map(s -> Response.ok(s, fileContentType(file)).build())
                 .orElseGet(() -> Response.status(Status.NOT_FOUND).entity("Page not found : " + file).build());
     }
 
