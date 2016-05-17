@@ -49,7 +49,7 @@ public class Main {
     @GET
     public Object index() {
         try (SqlSession s = Producer.openSession()) {
-            Account.Sql m = s.getMapper(Account.Sql.class);
+            Account.Dao m = s.getMapper(Account.Dao.class);
             m.drop();
             m.create();
             return String.valueOf(m.selectAll().size());
