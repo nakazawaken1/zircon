@@ -1,11 +1,7 @@
 package zircon.web;
 
-import java.net.URI;
-
 import javax.ws.rs.ApplicationPath;
 
-import org.glassfish.grizzly.http.server.HttpServer;
-import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.server.TracingConfig;
@@ -24,15 +20,21 @@ public class Starter extends ResourceConfig {
         LogFormatter.setup();
 
         // リソースクラスのパッケージ
-        packages(Starter.class.getPackage().getName());
+        packages("zircon");
 
         // レスポンスヘッダにログ表示
         property(ServerProperties.TRACING, TracingConfig.ALL.name());
     }
 
-    public static void main(String[] args) {
-        HttpServer server = GrizzlyHttpServerFactory.createHttpServer(
-                URI.create("http://localhost:8080/" + Starter.class.getAnnotation(ApplicationPath.class).value()), new Starter());
-        Runtime.getRuntime().addShutdownHook(new Thread(server::shutdownNow));
-    }
+// 単体で動作せる場合（pomのjersey-container-grizzly2-http, jersey-weld2-seを有効にしweld-servlet-coreを無効にする）
+//    public static void main(String[] args) {
+//        Weld weld = new Weld();
+//        weld.initialize();
+//        HttpServer server = GrizzlyHttpServerFactory.createHttpServer(
+//                URI.create("http://localhost:8080/" + Starter.class.getAnnotation(ApplicationPath.class).value()), new Starter());
+//        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+//            server.shutdownNow();
+//            weld.shutdown();
+//        }));
+//    }
 }

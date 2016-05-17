@@ -19,14 +19,20 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.container.ResourceInfo;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
+import javax.ws.rs.core.UriInfo;
+
+import org.apache.ibatis.session.SqlSession;
 
 import zircon.Zircon;
+import zircon.data.Account;
+import zircon.util.Producer;
 
 @Path("")
 public class Main {
@@ -34,9 +40,21 @@ public class Main {
     @Context
     HttpHeaders headers;
 
+    @Context
+    UriInfo uri;
+
+    @Context
+    ResourceInfo info;
+
     @GET
     public Object index() {
-        return file("index.html");
+        try (SqlSession s = Producer.openSession()) {
+            Account.Sql m = s.getMapper(Account.Sql.class);
+            m.drop();
+            m.create();
+            return String.valueOf(m.selectAll().size());
+        }
+        // return file("index.html");
     }
 
     String fileContentType(String file) {
@@ -59,7 +77,7 @@ public class Main {
     @Path("{file:.*}")
     public Object file(@PathParam("file") String file) {
         return Optional.ofNullable(getClass().getResourceAsStream(file)).map(s -> Response.ok(s, fileContentType(file)).build())
-                .orElseGet(() -> Response.status(Status.NOT_FOUND).entity("Page not found : " + file).build());
+                .orElseGet(() -> Response.status(Status.NOT_FOUND).entity("Page not found: " + file).build());
     }
 
     @POST

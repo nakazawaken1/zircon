@@ -13,7 +13,7 @@ public class AllExceptionMapper implements ExceptionMapper<Exception> {
     @Override
     public Response toResponse(Exception e) {
         Logger.getGlobal().log(Level.WARNING, "", e);
-        return null;
+        return Response.serverError().entity(e.toString()).build();
     }
 
 }
