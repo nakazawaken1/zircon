@@ -2,6 +2,7 @@ package zircon.web;
 
 import java.io.IOException;
 import java.io.PrintStream;
+import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.FileSystem;
@@ -52,6 +53,12 @@ public class Main {
             Account.Dao m = s.getMapper(Account.Dao.class);
             m.drop();
             m.create();
+            Account a = new Account();
+            a.name = "テスト";
+            a.login_id = "test";
+            m.save(a, true);
+            a.tall = BigDecimal.valueOf(185.1);
+            m.save(a, false);
             return String.valueOf(m.selectAll().size());
         }
         // return file("index.html");

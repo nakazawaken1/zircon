@@ -9,6 +9,7 @@ import javax.validation.constraints.Size;
 import javax.ws.rs.DefaultValue;
 
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.SelectProvider;
 import org.apache.ibatis.annotations.UpdateProvider;
 
@@ -43,5 +44,8 @@ public class Account extends Table {
 
         @SelectProvider(type = Account.class, method = "selectAll")
         List<Account> selectAll();
+
+        @UpdateProvider(type = Account.class, method = "save")
+        void save(@Param("data") Account data, @Param("all") boolean all);
     }
 }

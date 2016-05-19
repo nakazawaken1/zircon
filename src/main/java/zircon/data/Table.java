@@ -21,6 +21,19 @@ public class Table {
     @Timestamp(true)
     public ZonedDateTime update_time;
 
+    public String save(Table data, boolean all) {
+        return Stream.of(getClass().getFields()).filter(f -> f.isAnnotationPresent(Id.class)).findFirst().map(f -> {
+            try {
+                if (f.getInt(data) == 0) {
+                    return "INSERT";
+                }
+                return "UPDATE";
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }).orElse("INSERT ON UPDATE");
+    }
+
     public String createTable() {
         StringBuilder s = new StringBuilder("CREATE TABLE IF NOT EXISTS ");
         Class<?> t = getClass();
@@ -31,7 +44,7 @@ public class Table {
             Timestamp timestamp;
             String suffix = Optional.ofNullable(f.getDeclaredAnnotation(DefaultValue.class)).map(d -> " DEFAULT '" + d.value() + "'")
                     .orElse("");
-            if (f.getDeclaredAnnotation(Id.class) != null) {
+            if (f.isAnnotationPresent(Id.class)) {
                 ss.append(" SERIAL PRIMARY KEY");
             } else if ((timestamp = f.getDeclaredAnnotation(Timestamp.class)) != null) {
                 ss.append(" TIMESTAMP");
